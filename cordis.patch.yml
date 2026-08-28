@@ -1,0 +1,10 @@
+# heart-health-dsh-suite 的 bundle patch：只向宿主组成插入一个激活行。
+#
+# 该激活行把 presets/heart-health/（组合 + 显示元数据 + runtime/*.js）
+# 幂等落地到 <DSH_HOME>/.agent-presets/heart-health/ 用户 preset 根。
+# 领域能力本身全部运行在 preset 组合内，不进入 host 平面；
+# 真正的 MCP 连接仍由已安装在 profile 全局层的 heart-algo-dsh-plugin 提供。
+
+- insert:
+    - id: heart-health-activator
+      name: 'heart-health-dsh-suite'

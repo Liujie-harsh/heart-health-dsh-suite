@@ -1,0 +1,59 @@
+{
+  "name": "heart-health-dsh-suite",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness plugin suite for the heart-health scenario: heart-health preset, resident guidance, controlled heart_* wrapper tools over the heart-algo MCP bridge, and the safety policy that hides the raw mcp__heart-algo__* tools.",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./tools": "./lib/tools.js",
+    "./policy": "./lib/policy.js",
+    "./lib/*": "./lib/*"
+  },
+  "files": [
+    "lib",
+    "presets",
+    "cordis.patch.yml",
+    "README.md",
+    "scripts/check.mjs"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/build.mjs && node scripts/run-tests.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh-plugin",
+    "dsh-bundle",
+    "heart-failure",
+    "echocardiography",
+    "ecg"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-home-paths": "*",
+    "@deepseek-ai/dsh-llm": "*",
+    "@deepseek-ai/dsh-system-prompt": "*",
+    "@deepseek-ai/dsh-tools": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": false
+    }
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

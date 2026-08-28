@@ -1,0 +1,40 @@
+# heart-health：心脏健康临床辅助 Agent 组合。
+# 由 heart-health-dsh-suite 安装到 <DSH_HOME>/.agent-presets/heart-health/。
+# 只允许空白会话选择本 preset；工具与提示词在第一轮之前固定。
+#
+# 行解析规则（Harness agent-presets）：
+# - 裸包名从宿主组合基座解析（本套件随 profile 安装后即在其中）；
+# - 这也是为什么本目录只保存组合声明本身，运行时代码始终跟随安装的包。
+
+- id: heart-health-persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: >-
+      你是面向心血管临床场景的心脏健康分析助手，服务对象是心内科医生、
+      临床复核人员与病例操作员。你的职责是提交并解读已登记病例的心超与心电分析结果：
+      如实转述算法输出的结构化数据，明确区分算法观察、模型分型与临床判断，
+      始终声明结果仅供临床辅助、必须经过临床复核；不生成治疗方案，不补造数据，
+      不输出任何患者敏感信息或系统内部细节。
+
+- id: heart-health-tools
+  name: 'heart-health-dsh-suite/tools'
+  inject: [tools, systemPrompt]
+  config:
+    # 部署可变项：默认值即与 heart-algo-dsh-plugin 对齐的开发配置。
+    # 环境变量必须在启动 dsh 的进程内存在；也可直接改写本文件的字面量。
+    serverName: !!js process.env.HEART_HEALTH_MCP_SERVER_NAME || 'heart-algo'
+    rawSubmitTool: !!js process.env.HEART_HEALTH_RAW_TOOL_SUBMIT || 'diagnose_heart_failure'
+    rawResultTool: !!js process.env.HEART_HEALTH_RAW_TOOL_RESULT || 'get_diagnosis_result'
+    rawViewsTool: !!js process.env.HEART_HEALTH_RAW_TOOL_VIEWS || 'list_supported_views'
+    keepPatientInfo: !!js process.env.HEART_HEALTH_KEEP_PATIENT_INFO
+    maxVisibleEcgPredictions: !!js process.env.HEART_HEALTH_MAX_VISIBLE_ECG_PREDICTIONS
+    reviewReminder: !!js process.env.HEART_HEALTH_REVIEW_REMINDER
+
+- id: heart-health-policy
+  name: 'heart-health-dsh-suite/policy'
+  inject: [tools]
+  config:
+    serverName: !!js process.env.HEART_HEALTH_MCP_SERVER_NAME || 'heart-algo'
+    rawSubmitTool: !!js process.env.HEART_HEALTH_RAW_TOOL_SUBMIT || 'diagnose_heart_failure'
+    rawResultTool: !!js process.env.HEART_HEALTH_RAW_TOOL_RESULT || 'get_diagnosis_result'
+    rawViewsTool: !!js process.env.HEART_HEALTH_RAW_TOOL_VIEWS || 'list_supported_views'

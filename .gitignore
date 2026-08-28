@@ -1,0 +1,12 @@
+# 构建产物
+lib/
+.generated.tsconfig.json
+
+# preset 目录只保存组合声明；historical runtime 拷贝已废弃，防止旧产物回流
+presets/heart-health/runtime/
+
+# 测试基建产生的本地连接（模拟安装布局）
+node_modules/
+
+# 套件打包产物
+*.tgz
