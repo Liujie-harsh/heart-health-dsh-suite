@@ -26,7 +26,7 @@ heart-algo-mcp(算法服务) ──> heart-algo-dsh-plugin(MCP 桥) ──> hear
 ### 使用者（推荐：GitHub Release 分发包，内含预构建产物）
 
 前置：已安装 DSH Desktop；有可用的 heart-algo MCP 后端（默认 `http://127.0.0.1:8000/mcp`，
-可用 `HEART_ALGO_MCP_URL` 覆盖），并已安装 heart-algo-dsh-plugin 桥、设好 `HEART_ALGO_MCP_TOKEN`。
+可用 `HEART_ALGO_MCP_URL` 覆盖），并已安装 heart-algo-dsh-plugin 桥（Release：https://github.com/Liujie-harsh/heartalgo-mcp/releases/tag/heart-algo-dsh-plugin-v0.1.0 ）、设好 `HEART_ALGO_MCP_TOKEN`。
 
 ```powershell
 # 1) 从 Release 页下载最新 tgz：
