@@ -23,22 +23,41 @@ heart-algo-mcp(算法服务) ──> heart-algo-dsh-plugin(MCP 桥) ──> hear
 
 ## 安装
 
-```bash
-# 在 profile（web）全局层登记本包；裸行 heart-health-dsh-suite/tools 由宿主基座解析
-dsh plugin --profile web add ./heart-health-dsh-suite
+### 使用者（推荐：GitHub Release 分发包，内含预构建产物）
 
-# 安装驻留 preset（把 presets/heart-health/ 两个 yaml 写入 <DSH_HOME>/.agent-presets/）
-dsh bundle apply --profile web cordis.patch.yml
+前置：已安装 DSH Desktop；有可用的 heart-algo MCP 后端（默认 `http://127.0.0.1:8000/mcp`，
+可用 `HEART_ALGO_MCP_URL` 覆盖），并已安装 heart-algo-dsh-plugin 桥、设好 `HEART_ALGO_MCP_TOKEN`。
+
+```powershell
+# 1) 从 Release 页下载最新 tgz：
+#    https://github.com/Liujie-harsh/heart-health-dsh-suite/releases
+dsh plugin --profile <你的profile> add .\heart-health-dsh-suite-0.1.0.tgz
+
+# 2) 重启 DSH Desktop。
+#    本包是 bundle：每次 profile 引导时激活器自动把 preset 幂等写入
+#    <DSH_HOME>\.agent-presets\heart-health\，无需手动 bundle apply。
+
+# 3) 新建空白会话 → agent preset 选择器 → 选「心脏健康」。
 ```
 
 卸载：
 
-```bash
-dsh plugin --profile web remove heart-health-dsh-suite
+```powershell
+dsh plugin --profile <你的profile> remove heart-health-dsh-suite
 ```
 
 > 卸载说明：`dsh plugin remove` 会同时删除已复制到用户根目录的 preset 目录，
 > 但已经启动的会话进程仍持有旧能力直到重启。`tools/change` 之后新会话即恢复干净工具面。
+
+### 开发者（源码安装）
+
+```powershell
+git clone https://github.com/Liujie-harsh/heart-health-dsh-suite.git
+$env:DSH_CHECKOUT = '<DeepSeek Harness checkout 路径>'   # 构建从这里取 typescript 与 peer 类型
+cd heart-health-dsh-suite
+npm run build   # 编译到 lib/（发布 tarball 内含预构建产物，使用者无需此步）
+dsh plugin --profile <你的profile> add .\
+```
 
 ## 配置旋钮（环境变量）
 
