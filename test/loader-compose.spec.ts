@@ -23,9 +23,18 @@ import {
 import { createFakeHeartMcp, FAKE_RAW_NAMES } from './helpers/fake-heart-mcp.js'
 
 const WRAPPERS = [
+  'heart_analyze_case_files',
+  'heart_compare_diagnoses',
+  'heart_generate_report',
+  'heart_get_case_detail',
   'heart_get_diagnosis_result',
+  'heart_get_review_status',
+  'heart_interpret_diagnosis',
+  'heart_list_cases',
   'heart_list_supported_views',
+  'heart_list_tasks',
   'heart_submit_diagnosis',
+  'heart_submit_review',
 ]
 
 let ctx: Context

@@ -17,9 +17,18 @@ import { createFakeHeartMcp } from './helpers/fake-heart-mcp.js'
 import { redactString, scrubValue } from '../lib/privacy.js'
 
 const WRAPPERS = [
+  'heart_analyze_case_files',
+  'heart_compare_diagnoses',
+  'heart_generate_report',
+  'heart_get_case_detail',
   'heart_get_diagnosis_result',
+  'heart_get_review_status',
+  'heart_interpret_diagnosis',
+  'heart_list_cases',
   'heart_list_supported_views',
+  'heart_list_tasks',
   'heart_submit_diagnosis',
+  'heart_submit_review',
 ]
 
 let ctx: import('@deepseek-ai/cordis').Context
@@ -47,7 +56,7 @@ describe('preset lifecycle', () => {
     const second = await agentOn(ctx, 'sess-life-2')
     expect(toolNames(ctx, second)).toEqual(WRAPPERS)
 
-    // 顺序再挂一轮（模拟 HMR/重载后的新会话），仍然只有三个包装能力。
+    // 顺序再挂一轮（模拟 HMR/重载后的新会话），包装能力集合保持一致。
     const third = await agentOn(ctx, 'sess-life-3')
     expect(toolNames(ctx, third)).toEqual(WRAPPERS)
 

@@ -11,6 +11,15 @@ export const FAKE_RAW_NAMES = {
   submit: 'mcp__heart-algo__diagnose_heart_failure',
   result: 'mcp__heart-algo__get_diagnosis_result',
   views: 'mcp__heart-algo__list_supported_views',
+  analyze: 'mcp__heart-algo__analyze_case_files',
+  interpret: 'mcp__heart-algo__interpret_diagnosis',
+  report: 'mcp__heart-algo__generate_report',
+  compare: 'mcp__heart-algo__compare_diagnoses',
+  cases: 'mcp__heart-algo__list_cases',
+  detail: 'mcp__heart-algo__get_case_detail',
+  tasks: 'mcp__heart-algo__list_tasks',
+  reviewStatus: 'mcp__heart-algo__get_review_status',
+  reviewSubmit: 'mcp__heart-algo__submit_review',
 } as const
 
 export interface ScriptedOutcome {

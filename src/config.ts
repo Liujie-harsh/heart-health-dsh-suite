@@ -6,13 +6,40 @@
  * 绝不静默回退成一个没有诊断能力的 Agent。
  */
 
+/** 核心 + 扩展共 12 个底层 raw 工具的配置键名（与 HeartSuiteConfig 字段一一对应）。 */
+export const RAW_TOOL_KEYS = [
+  'rawSubmitTool',
+  'rawResultTool',
+  'rawViewsTool',
+  'rawAnalyzeTool',
+  'rawInterpretTool',
+  'rawReportTool',
+  'rawCompareTool',
+  'rawListCasesTool',
+  'rawCaseDetailTool',
+  'rawListTasksTool',
+  'rawReviewStatusTool',
+  'rawSubmitReviewTool',
+] as const
+
+export type RawToolKey = (typeof RAW_TOOL_KEYS)[number]
+
 export interface HeartSuiteConfig {
   /** MCP bridge 的 serverName（决定原始工具名前缀 mcp__<serverName>__*）。 */
   readonly serverName: string
-  /** 底层三个 MCP 工具的 raw 名称。 */
+  /** 底层 MCP 工具的 raw 名称（核心三个 + 扩展九个，默认与 mcp_server.py 对齐）。 */
   readonly rawSubmitTool: string
   readonly rawResultTool: string
   readonly rawViewsTool: string
+  readonly rawAnalyzeTool: string
+  readonly rawInterpretTool: string
+  readonly rawReportTool: string
+  readonly rawCompareTool: string
+  readonly rawListCasesTool: string
+  readonly rawCaseDetailTool: string
+  readonly rawListTasksTool: string
+  readonly rawReviewStatusTool: string
+  readonly rawSubmitReviewTool: string
   /** completed 结果中是否向模型保留 ECG 的 patient_info（age/sex）。 */
   readonly keepPatientInfo: boolean
   /** 模型可见内容中每条 ECG 最多展示的预测条数（Top-K 截断）。 */
@@ -22,6 +49,22 @@ export interface HeartSuiteConfig {
 }
 
 export const DEFAULT_SERVER_NAME = 'heart-algo'
+
+/** 各 raw 工具键的默认 raw 名与环境变量旋钮（顺序与 RAW_TOOL_KEYS 一致）。 */
+export const RAW_TOOL_DEFAULTS: Readonly<Record<RawToolKey, { fallback: string; env: string }>> = {
+  rawSubmitTool: { fallback: 'diagnose_heart_failure', env: 'HEART_HEALTH_RAW_TOOL_SUBMIT' },
+  rawResultTool: { fallback: 'get_diagnosis_result', env: 'HEART_HEALTH_RAW_TOOL_RESULT' },
+  rawViewsTool: { fallback: 'list_supported_views', env: 'HEART_HEALTH_RAW_TOOL_VIEWS' },
+  rawAnalyzeTool: { fallback: 'analyze_case_files', env: 'HEART_HEALTH_RAW_TOOL_ANALYZE' },
+  rawInterpretTool: { fallback: 'interpret_diagnosis', env: 'HEART_HEALTH_RAW_TOOL_INTERPRET' },
+  rawReportTool: { fallback: 'generate_report', env: 'HEART_HEALTH_RAW_TOOL_REPORT' },
+  rawCompareTool: { fallback: 'compare_diagnoses', env: 'HEART_HEALTH_RAW_TOOL_COMPARE' },
+  rawListCasesTool: { fallback: 'list_cases', env: 'HEART_HEALTH_RAW_TOOL_LIST_CASES' },
+  rawCaseDetailTool: { fallback: 'get_case_detail', env: 'HEART_HEALTH_RAW_TOOL_CASE_DETAIL' },
+  rawListTasksTool: { fallback: 'list_tasks', env: 'HEART_HEALTH_RAW_TOOL_LIST_TASKS' },
+  rawReviewStatusTool: { fallback: 'get_review_status', env: 'HEART_HEALTH_RAW_TOOL_REVIEW_STATUS' },
+  rawSubmitReviewTool: { fallback: 'submit_review', env: 'HEART_HEALTH_RAW_TOOL_SUBMIT_REVIEW' },
+}
 
 function envBool(value: string | undefined, fallback: boolean, label: string): boolean {
   if (value === undefined || value.trim() === '') return fallback
@@ -79,14 +122,15 @@ export function resolveSuiteConfig(
   const keepPatientInfoRaw = row.keepPatientInfo !== undefined ? String(row.keepPatientInfo) : undefined
   const reviewReminderRaw = row.reviewReminder !== undefined ? String(row.reviewReminder) : undefined
 
+  const rawTools = {} as Record<RawToolKey, string>
+  for (const key of RAW_TOOL_KEYS) {
+    const { fallback, env: envKey } = RAW_TOOL_DEFAULTS[key]
+    rawTools[key] = requireNonEmpty(readRowString(key) ?? env[envKey] ?? fallback, key)
+  }
+
   const config: HeartSuiteConfig = {
     serverName,
-    rawSubmitTool:
-      requireNonEmpty(readRowString('rawSubmitTool') ?? env.HEART_HEALTH_RAW_TOOL_SUBMIT ?? 'diagnose_heart_failure', 'rawSubmitTool'),
-    rawResultTool:
-      requireNonEmpty(readRowString('rawResultTool') ?? env.HEART_HEALTH_RAW_TOOL_RESULT ?? 'get_diagnosis_result', 'rawResultTool'),
-    rawViewsTool:
-      requireNonEmpty(readRowString('rawViewsTool') ?? env.HEART_HEALTH_RAW_TOOL_VIEWS ?? 'list_supported_views', 'rawViewsTool'),
+    ...rawTools,
     keepPatientInfo: envBool(keepPatientInfoRaw ?? env.HEART_HEALTH_KEEP_PATIENT_INFO, true, 'keepPatientInfo'),
     maxVisibleEcgPredictions: envInt(maxVisibleEcgPredictionsRaw ?? env.HEART_HEALTH_MAX_VISIBLE_ECG_PREDICTIONS, 8, 1, 50, 'maxVisibleEcgPredictions'),
     reviewReminder: envBool(reviewReminderRaw ?? env.HEART_HEALTH_REVIEW_REMINDER, true, 'reviewReminder'),
@@ -98,7 +142,7 @@ export function resolveSuiteConfig(
 /** 纯校验入口：对象形态的配置（如测试）直接调用。 */
 export function validate(config: HeartSuiteConfig): void {
   requireNonEmpty(config.serverName, 'serverName')
-  for (const key of ['rawSubmitTool', 'rawResultTool', 'rawViewsTool'] as const) {
+  for (const key of RAW_TOOL_KEYS) {
     requireNonEmpty(config[key], key)
   }
   if (!Number.isInteger(config.maxVisibleEcgPredictions)

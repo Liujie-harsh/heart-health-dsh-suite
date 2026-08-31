@@ -6,7 +6,22 @@
  * 所有函数都是纯函数：相同输入产生相同输出（快照测试的基础）。
  */
 
-import type { CompletedDiagnosis, DiagnosisOutcome, EcgItem, SubmitOutcome, ViewsOutcome } from './contract.js'
+import type {
+  AnalyzeOutcome,
+  CaseDetailOutcome,
+  CompletedDiagnosis,
+  CompareOutcome,
+  DiagnosisOutcome,
+  EcgItem,
+  InterpretOutcome,
+  ListCasesOutcome,
+  ListTasksOutcome,
+  ReportOutcome,
+  ReviewOutcome,
+  ReviewStatusOutcome,
+  SubmitOutcome,
+  ViewsOutcome,
+} from './contract.js'
 import type { HeartSuiteConfig } from './config.js'
 
 // ── submit ─────────────────────────────────────────────────────────────────
@@ -212,5 +227,248 @@ export function viewsPresentationMeta(views: ViewsOutcome): Record<string, unkno
   return {
     card: 'heart-supported-views',
     viewTypes: views.views.map(view => view.dcm_type),
+  }
+}
+
+// ── 扩展九件套的渲染 ────────────────────────────────────────────────────────
+
+export function renderAnalyze(outcome: AnalyzeOutcome): string {
+  const lines: string[] = []
+  lines.push(outcome.case_created
+    ? `已创建病例 ${outcome.case_id} 并登记 ${outcome.assets.length} 个资产。`
+    : `复用已有病例 ${outcome.case_id}，新登记 ${outcome.assets.length} 个资产。`)
+  for (const asset of outcome.assets) {
+    const kind = asset.dcm_type !== null ? asset.dcm_type : asset.modality
+    lines.push(`- ${asset.asset_id}（${kind}，SHA-256 前 8 位 ${asset.sha256.slice(0, 8)}）`)
+  }
+  if (outcome.task_id !== undefined) {
+    lines.push(`已提交分析任务 task_id: ${outcome.task_id}（状态 ${outcome.status ?? 'processing'}）。`)
+    lines.push('推理进行中时请在后续轮次用 heart_get_diagnosis_result 查询，本轮无需等待。')
+  } else {
+    lines.push('仅登记资产，未提交分析。需要分析时用 heart_submit_diagnosis 提交。')
+  }
+  lines.push('结果仅供临床辅助，必须经过临床人员复核。')
+  return lines.join('\n')
+}
+
+export function analyzePresentationMeta(outcome: AnalyzeOutcome): Record<string, unknown> {
+  const meta: Record<string, unknown> = {
+    card: 'heart-analyze',
+    caseId: outcome.case_id,
+    caseCreated: outcome.case_created,
+    assets: outcome.assets.length,
+  }
+  if (outcome.task_id !== undefined) {
+    meta['taskId'] = outcome.task_id
+    meta['status'] = outcome.status ?? 'processing'
+  }
+  return meta
+}
+
+export function renderInterpret(outcome: InterpretOutcome): string {
+  if (outcome.status === 'processing') {
+    return `任务 ${outcome.task_id} 尚在处理中，规则解读需要任务 completed 后才能进行。`
+  }
+  if (outcome.status === 'failed') {
+    return [`任务 ${outcome.task_id} 失败。`, `公开错误：${outcome.error}`].join('\n')
+  }
+  const lines: string[] = []
+  lines.push(`任务 ${outcome.task_id} 的规则解读（参考范围比对，不构成诊断）：`)
+  if (outcome.lvef_value !== null) {
+    lines.push(`- LVEF（Teichholz 估算）：${outcome.lvef_value}%，规则分型：${outcome.lvef_classification ?? '无法判定'}`)
+  } else {
+    lines.push('- 本次结果没有可用的 LVEF 测量。')
+  }
+  if (outcome.abnormal_findings.length === 0) {
+    lines.push('- 未发现超出参考范围的指标。')
+  } else {
+    for (const finding of outcome.abnormal_findings) {
+      const direction = finding.status === 'high' ? '偏高' : '偏低'
+      const scope = finding.scope !== null ? `（来源 ${finding.scope}）` : ''
+      lines.push(`- ${finding.name_cn} ${finding.value} ${finding.unit}（参考 ${finding.reference}）${direction}${scope}`)
+    }
+  }
+  for (const indicator of outcome.combined_indicators) {
+    const flag = indicator.status === 'high' ? '异常' : indicator.status === 'low' ? '偏低' : '正常'
+    lines.push(`- 组合指标 ${indicator.name} = ${indicator.value}（${indicator.reference}，${flag}；${indicator.basis}）`)
+  }
+  for (const asset of outcome.unavailable_assets) {
+    if (asset.error !== null) lines.push(`- 资产 ${asset.dcm_id ?? '?'} 分析失败：${asset.error}`)
+    if (asset.skip_reason !== null) lines.push(`- 资产 ${asset.dcm_id ?? '?'} 被跳过：${asset.skip_reason}`)
+  }
+  lines.push('以上是规则比对输出，仅供辅助，必须由临床人员复核后使用。')
+  return lines.join('\n')
+}
+
+export function interpretPresentationMeta(outcome: InterpretOutcome): Record<string, unknown> {
+  if (outcome.status !== 'completed') {
+    return { card: 'heart-interpret', taskId: outcome.task_id, status: outcome.status }
+  }
+  return {
+    card: 'heart-interpret',
+    taskId: outcome.task_id,
+    status: outcome.status,
+    lvef: outcome.lvef_value,
+    lvefClassification: outcome.lvef_classification,
+    abnormalCount: outcome.abnormal_findings.length,
+    combinedIndicators: outcome.combined_indicators.length,
+    unavailableAssets: outcome.unavailable_assets.length,
+  }
+}
+
+export function renderReport(outcome: ReportOutcome): string {
+  if (outcome.status !== 'completed') {
+    return `任务 ${outcome.task_id} 状态为 ${outcome.status}，报告要等任务 completed 后才能生成。`
+  }
+  const lines: string[] = []
+  lines.push(`报告草稿已生成（${outcome.format ?? 'markdown'}，${(outcome.content ?? '').length} 字符）：`)
+  lines.push('')
+  lines.push(outcome.content ?? '（报告内容为空）')
+  if (outcome.artifact !== undefined) {
+    lines.push('')
+    lines.push(`已存回病例工件 ${outcome.artifact.artifact_id}（SHA-256 前 8 位 ${outcome.artifact.sha256.slice(0, 8)}）。`)
+  }
+  return lines.join('\n')
+}
+
+export function reportPresentationMeta(outcome: ReportOutcome): Record<string, unknown> {
+  const meta: Record<string, unknown> = {
+    card: 'heart-report',
+    taskId: outcome.task_id,
+    caseId: outcome.case_id,
+    status: outcome.status,
+    format: outcome.format ?? null,
+    savedToCase: outcome.artifact !== undefined,
+  }
+  if (outcome.artifact !== undefined) meta['artifactId'] = outcome.artifact.artifact_id
+  return meta
+}
+
+export function renderCompare(outcome: CompareOutcome): string {
+  if (outcome.comparison === null) {
+    return [
+      `对比未完成：task ${outcome.task_id_a} 状态 ${outcome.status_a ?? 'unknown'}，task ${outcome.task_id_b} 状态 ${outcome.status_b ?? 'unknown'}。`,
+      '纵向对比要求两个任务均已完成。',
+    ].join('\n')
+  }
+  const lines: string[] = []
+  lines.push(`同病例两次任务对比（${outcome.task_id_a} → ${outcome.task_id_b}）：`)
+  for (const row of outcome.comparison.metrics) {
+    const pct = row.pct_change !== null ? `，${row.pct_change > 0 ? '+' : ''}${row.pct_change}%` : ''
+    const mark = row.notable ? '，变化显著' : ''
+    lines.push(`- ${row.name_cn}(${row.metric})：${row.value_a} → ${row.value_b} ${row.unit}（Δ${row.delta}${pct}，${row.direction}${mark}）`)
+  }
+  const classification = outcome.comparison.lvef_classification
+  if (classification !== null) {
+    lines.push(`LVEF 规则分型：${classification.from ?? '?'} → ${classification.to ?? '?'}。`)
+  }
+  lines.push('差异可能来自图像质量与操作者变异，不构成病情结论；必须由临床人员复核。')
+  return lines.join('\n')
+}
+
+export function comparePresentationMeta(outcome: CompareOutcome): Record<string, unknown> {
+  const meta: Record<string, unknown> = {
+    card: 'heart-compare',
+    caseId: outcome.case_id,
+    taskIdA: outcome.task_id_a,
+    taskIdB: outcome.task_id_b,
+    compared: outcome.comparison !== null,
+  }
+  if (outcome.comparison !== null) {
+    meta['metricCount'] = outcome.comparison.metrics.length
+    meta['notableCount'] = outcome.comparison.metrics.filter(row => row.notable).length
+  }
+  return meta
+}
+
+export function renderListCases(outcome: ListCasesOutcome): string {
+  const lines: string[] = []
+  lines.push(`服务账号可见 ${outcome.count} 个病例：`)
+  for (const item of outcome.cases) {
+    const review = item.review_decision !== null ? `，复核 ${item.review_decision}` : ''
+    lines.push(`- ${item.case_id}（资产 ${item.asset_count}，任务 ${item.diagnosis_count}${review}）`)
+  }
+  return lines.join('\n')
+}
+
+export function listCasesPresentationMeta(outcome: ListCasesOutcome): Record<string, unknown> {
+  return { card: 'heart-case-list', count: outcome.count }
+}
+
+export function renderCaseDetail(outcome: CaseDetailOutcome): string {
+  const lines: string[] = []
+  lines.push(`病例 ${outcome.case_id}（创建于 ${outcome.created_at ?? '?'}）：`)
+  lines.push(`资产 ${outcome.assets.length} 个：${outcome.assets.map(asset => asset.asset_id).join(', ') || '无'}`)
+  lines.push(`分析任务 ${outcome.diagnoses.length} 个：`)
+  for (const diagnosis of outcome.diagnoses) {
+    lines.push(`- ${diagnosis.task_id}（状态 ${diagnosis.status ?? 'unknown'}）`)
+  }
+  if (outcome.artifacts.length > 0) {
+    lines.push(`报告工件 ${outcome.artifacts.length} 个：${outcome.artifacts.map(artifact => artifact.artifact_id).join(', ')}`)
+  }
+  const latestReview = outcome.review_history[outcome.review_history.length - 1]
+  lines.push(latestReview !== undefined
+    ? `最近复核：${latestReview.reviewer_id} 作出 ${latestReview.decision}。`
+    : '该病例尚无临床复核记录。')
+  return lines.join('\n')
+}
+
+export function caseDetailPresentationMeta(outcome: CaseDetailOutcome): Record<string, unknown> {
+  return {
+    card: 'heart-case-detail',
+    caseId: outcome.case_id,
+    assets: outcome.assets.length,
+    diagnoses: outcome.diagnoses.length,
+    artifacts: outcome.artifacts.length,
+    reviewHistory: outcome.review_history.length,
+  }
+}
+
+export function renderListTasks(outcome: ListTasksOutcome): string {
+  const lines: string[] = []
+  lines.push(`共 ${outcome.count} 个分析任务：`)
+  for (const task of outcome.tasks) {
+    lines.push(`- ${task.case_id} / ${task.task_id}（${task.status}）`)
+  }
+  return lines.join('\n')
+}
+
+export function listTasksPresentationMeta(outcome: ListTasksOutcome): Record<string, unknown> {
+  return { card: 'heart-task-list', count: outcome.count }
+}
+
+export function renderReviewStatus(outcome: ReviewStatusOutcome): string {
+  return [
+    `任务 ${outcome.task_id} 的复核状态：${outcome.review_status}（共 ${outcome.review_count} 条复核记录）。`,
+    outcome.requires_clinician_review
+      ? '该结果尚未经临床复核确认，不能作为最终临床结论。'
+      : '该结果已经临床复核通过。',
+  ].join('\n')
+}
+
+export function reviewStatusPresentationMeta(outcome: ReviewStatusOutcome): Record<string, unknown> {
+  return {
+    card: 'heart-review-status',
+    taskId: outcome.task_id,
+    caseId: outcome.case_id,
+    reviewStatus: outcome.review_status,
+    reviewCount: outcome.review_count,
+  }
+}
+
+export function renderReviewSubmit(outcome: ReviewOutcome): string {
+  return [
+    `已为任务 ${outcome.task_id} 登记复核结论：${outcome.reviewer_id} 于 ${outcome.reviewed_at} 作出「${outcome.decision}」。`,
+    '复核结论只能由真实临床人员作出；Agent 只负责登记，不得代替复核。',
+  ].join('\n')
+}
+
+export function reviewSubmitPresentationMeta(outcome: ReviewOutcome): Record<string, unknown> {
+  return {
+    card: 'heart-review-submit',
+    caseId: outcome.case_id,
+    taskId: outcome.task_id,
+    reviewerId: outcome.reviewer_id,
+    decision: outcome.decision,
   }
 }

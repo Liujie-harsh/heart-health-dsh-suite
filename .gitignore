@@ -10,3 +10,4 @@ node_modules/
 
 # 套件打包产物
 *.tgz
+build.log

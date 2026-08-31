@@ -41,7 +41,10 @@ export function policyUnderlyingPrefix(serverName: string): string {
 export function directCallDenialReason(config: HeartSuiteConfig): string {
   return (
     `安全策略禁止直接调用 ${policyUnderlyingPrefix(config.serverName)}* 原始工具；`
-    + `请改用包装工具 ${'heart_submit_diagnosis'} / ${'heart_get_diagnosis_result'} / ${'heart_list_supported_views'}。`
+    + '请改用 heart_ 前缀包装工具（heart_submit_diagnosis / heart_get_diagnosis_result / '
+    + 'heart_list_supported_views / heart_analyze_case_files / heart_interpret_diagnosis / '
+    + 'heart_generate_report / heart_compare_diagnoses / heart_list_cases / heart_get_case_detail / '
+    + 'heart_list_tasks / heart_get_review_status / heart_submit_review）。'
   )
 }
 
