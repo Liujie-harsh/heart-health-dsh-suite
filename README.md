@@ -8,6 +8,8 @@
 ```
 heart-algo-mcp(算法服务) ──> heart-algo-dsh-plugin(MCP 桥) ──> heart-health-dsh-suite(本包)
 ```
+heart-ag-lgo 后端推理算法代码地址：
+https://github.com/Liujie-harsh/heartalgo-mcp
 
 ## 能力总览
 
